@@ -1,0 +1,35 @@
+{
+  "name": "datasutra-backend",
+  "version": "1.0.0",
+  "description": "DataSutra Backend REST API",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "keywords": [
+    "datasutra",
+    "express",
+    "api"
+  ],
+  "author": "DataSutra Team",
+  "license": "ISC",
+  "dependencies": {
+    "@langchain/core": "^1.2.12",
+    "@langchain/google-genai": "^2.3.2",
+    "@langchain/openai": "^1.5.8",
+    "adm-zip": "^0.6.1",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.5",
+    "csv-parse": "^7.0.2",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.10.2",
+    "multer": "^2.4.0",
+    "pdf-parse": "^2.4.5",
+    "xlsx": "^0.18.5",
+    "zod": "^4.6.5"
+  }
+}
