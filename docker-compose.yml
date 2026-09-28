@@ -1,0 +1,11 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - datasutra_vectors:/qdrant/storage
+    restart: unless-stopped
+
+volumes:
+  datasutra_vectors:

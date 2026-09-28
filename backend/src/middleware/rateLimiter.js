@@ -10,6 +10,7 @@ class MemoryRateLimiter {
     this.message = options.message || 'Too many requests from this IP, please try again later.';
     this.statusCode = options.statusCode || 429;
     this.hits = new Map();
+    this.keyGenerator = options.keyGenerator;
 
     // Periodic cleanup of expired buckets every 5 minutes
     this.cleanupInterval = setInterval(() => {
@@ -33,7 +34,7 @@ class MemoryRateLimiter {
         return next();
       }
 
-      const ip =
+      const ip = this.keyGenerator?.(req) ||
         req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
         req.socket.remoteAddress ||
         '127.0.0.1';

@@ -1,3 +1,4 @@
+import aiRoutes from './ai.routes.js';
 import { Router } from 'express';
 import healthRoute from './health.route.js';
 import authRoutes from './auth.routes.js';
@@ -11,6 +12,7 @@ router.use('/health', healthRoute);
 
 // Mount Authentication endpoints: /api/v1/auth
 router.use('/auth', authRoutes);
+router.use('/ai', aiRoutes);
 
 // Mount Dataset endpoints: /api/v1/datasets
 router.use('/datasets', datasetRoutes);

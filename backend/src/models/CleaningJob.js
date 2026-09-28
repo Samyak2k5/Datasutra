@@ -323,6 +323,7 @@ const cleaningJobSchema = new mongoose.Schema(
       type: [mongoose.Schema.Types.Mixed],
       default: []
     },
+    comparisonReport: { type: mongoose.Schema.Types.Mixed, default: null },
     transformationLog: {
       type: [mongoose.Schema.Types.Mixed],
       default: []

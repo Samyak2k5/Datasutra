@@ -72,3 +72,21 @@ test('incomplete authentication responses never persist a token or user', async 
   await assert.rejects(api.login({ email: 'validation@example.test', password: 'unused' }), /incomplete authentication/);
   assert.equal(api.getToken(), null); assert.equal(api.getCurrentUser(), null);
 });
+
+
+test('profile and AI requests use authenticated backend endpoints and propagate errors', async () => {
+  api.setToken('valid');
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return url.includes('/auth/profile') ? response({ data: { user: { id: 'owner', name: 'Updated' } } }) : response({ message: 'OpenAI API key is not configured.' }, 503);
+  };
+  const updated = await api.updateProfile('Updated');
+  assert.equal(updated.data.user.name, 'Updated');
+  assert.equal(calls[0].options.method, 'PATCH');
+  assert.equal(calls[0].options.headers.Authorization, 'Bearer valid');
+  assert.deepEqual(JSON.parse(calls[0].options.body), { name: 'Updated' });
+  await assert.rejects(api.datasetAI('dataset', 'command', { instruction: 'Trim names' }), /key is not configured/);
+  assert.equal(calls[1].url, '/api/v1/ai/command/dataset');
+  assert.equal(api.getToken(), 'valid');
+});

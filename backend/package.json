@@ -8,7 +8,10 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "seed:demo": "node scripts/seedDemoUser.js",
-    "test:real-data": "node scripts/testRealDataFlow.js"
+    "test:real-data": "node scripts/testRealDataFlow.js",
+    "test": "node --test --test-isolation=none tests/*.test.js",
+    "test:ai:live": "node scripts/testLiveAI.js",
+    "test:ai:pipeline": "node scripts/testVectorPipeline.js"
   },
   "keywords": [
     "datasutra",
@@ -31,6 +34,7 @@
     "mongoose": "^9.10.2",
     "multer": "^2.4.0",
     "pdf-parse": "^2.4.5",
+    "word-extractor": "^1.0.4",
     "xlsx": "^0.18.5",
     "zod": "^4.6.5"
   }

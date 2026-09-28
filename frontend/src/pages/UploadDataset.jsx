@@ -144,7 +144,7 @@ export default function UploadDataset() {
           }}
         >
           <Upload size={16} />
-          <span>File Upload (CSV, XLSX, JSON, PDF, DOCX)</span>
+          <span>File Upload (CSV, XLSX/XLS, JSON, TXT, PDF, DOCX)</span>
         </button>
 
         <button
@@ -485,7 +485,7 @@ export default function UploadDataset() {
               Unified Multi-Format Support
             </div>
             <div style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", marginTop: 4 }}>
-              Supports CSV, Excel (XLSX), JSON/NDJSON, PDF documents (text & tables), Word (DOCX), and secure JSON APIs.
+              Supports CSV, Excel (XLSX/XLS), JSON/NDJSON, TXT, PDF documents (text & tables), Word (DOCX), and secure JSON APIs.
             </div>
           </div>
         </div>

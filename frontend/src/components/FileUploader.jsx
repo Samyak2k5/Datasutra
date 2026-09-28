@@ -18,6 +18,7 @@ export default function FileUploader({
   maxSizeBytes = 50 * 1024 * 1024, // 50MB
   acceptedExtensions = [
     ".csv",
+    ".txt",
     ".xlsx",
     ".xls",
     ".json",
@@ -46,6 +47,7 @@ export default function FileUploader({
     if (lower.endsWith(".csv")) return { label: "CSV", color: "#10b981", icon: FileSpreadsheet, type: "CSV Dataset" };
     if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) return { label: "XLSX", color: "#059669", icon: FileSpreadsheet, type: "Excel Spreadsheet" };
     if (lower.endsWith(".json") || lower.endsWith(".jsonl") || lower.endsWith(".ndjson")) return { label: "JSON", color: "#f59e0b", icon: FileCode, type: "JSON Dataset" };
+    if (lower.endsWith(".txt")) return { label: "TXT", color: "#64748b", icon: FileText, type: "Text Document" };
     if (lower.endsWith(".pdf")) return { label: "PDF", color: "#ef4444", icon: FileText, type: "PDF Document" };
     if (lower.endsWith(".docx") || lower.endsWith(".doc")) return { label: "DOCX", color: "#2563eb", icon: FileType, type: "Word Document" };
     return { label: "FILE", color: "#6b7280", icon: FileText, type: "Document" };
@@ -60,6 +62,9 @@ export default function FileUploader({
       return false;
     }
 
+    if (file.type?.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|tiff?|svg)$/i.test(file.name)) {
+      setError('Image AI analysis is not enabled in this MVP'); return false;
+    }
     // Size limit check
     if (file.size > maxSizeBytes) {
       setError(`File size exceeds 50MB limit (${formatFileSize(file.size)}). Please upload a smaller file.`);
@@ -70,7 +75,7 @@ export default function FileUploader({
     const fileName = file.name.toLowerCase();
     const isValidExtension = acceptedExtensions.some((ext) => fileName.endsWith(ext));
     if (!isValidExtension) {
-      setError(`Unsupported file format. Supported formats: CSV, XLSX, JSON, PDF, DOCX.`);
+      setError(`Unsupported file format. Supported formats: CSV, XLSX/XLS, JSON, TXT, PDF, DOCX.`);
       return false;
     }
 
@@ -139,6 +144,7 @@ export default function FileUploader({
     { label: "CSV", color: "#10b981", desc: ".csv" },
     { label: "XLSX", color: "#059669", desc: ".xlsx, .xls" },
     { label: "JSON", color: "#f59e0b", desc: ".json, .jsonl" },
+    { label: "TXT", color: "#64748b", desc: ".txt (UTF-8)" },
     { label: "PDF", color: "#ef4444", desc: ".pdf (text & tables)" },
     { label: "DOCX", color: "#2563eb", desc: ".docx, .doc" }
   ];

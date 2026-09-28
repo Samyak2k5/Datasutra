@@ -1,3 +1,4 @@
+import { processPlannedRows } from '../planOperations.js';
 import {
   RowClassification,
   IssueSeverity,
@@ -61,6 +62,7 @@ export const classifyRow = (rowResult) => {
  * @returns {{ rows: Array<object>, metrics: object, fieldTypes: object }}
  */
 export const processDatasetRows = (rows, columns = [], options = {}) => {
+  if (options.operations) return processPlannedRows(rows, columns, options, classifyRow);
   if (!Array.isArray(rows)) {
     return { rows: [], metrics: createInitialMetrics(0), fieldTypes: {} };
   }

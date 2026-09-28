@@ -200,6 +200,16 @@ class ApiClient {
     });
   }
 
+  async updateProfile(name) {
+    return this.request('/auth/profile', { method: 'PATCH', body: JSON.stringify({ name }) });
+  }
+
+  async datasetAI(datasetId, action, payload = {}) {
+    return this.request('/ai/' + action + '/' + encodeURIComponent(datasetId), {
+      method: 'POST', body: JSON.stringify(payload), timeoutMs: 180000
+    });
+  }
+
   async deleteDataset(datasetId) {
     return this.request(`/datasets/${datasetId}`, {
       method: "DELETE"

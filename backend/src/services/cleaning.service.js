@@ -1,3 +1,6 @@
+import { buildComparisonReport } from './cleaningMetrics.service.js';
+import { createApiCalls } from '../ai/apiCallTracker.js';
+import { validateOperations } from '../ai/schemas/aiCleaning.schema.js';
 import fs from 'fs';
 import mongoose from 'mongoose';
 import env from '../config/env.js';
@@ -20,7 +23,7 @@ import reviewService from './review.service.js';
  * @param {object} [options={}] - Custom configuration rules
  * @returns {Promise<{ job: object, metrics: object, preview: Array<object> }>}
  */
-export const cleanDataset = async (datasetId, userId, options = {}) => {
+export const cleanDataset = async (datasetId, userId, options = {}, reportContext = null) => {
   if (!mongoose.Types.ObjectId.isValid(datasetId)) {
     throw ApiError.badRequest('Invalid dataset ID format.');
   }
@@ -47,8 +50,17 @@ export const cleanDataset = async (datasetId, userId, options = {}) => {
     throw ApiError.badRequest('Dataset physical file is missing from storage.');
   }
 
+  if (options.operations) {
+    validateOperations(options.operations, dataset.columns);
+    if (!reportContext && options.operations.some(operation => operation.type === 'detect_duplicates') && dataset.totalRows > (options.batchSize || env.batchSize)) {
+      throw ApiError.badRequest('Reviewed duplicate detection supports datasets up to ' + (options.batchSize || env.batchSize) + ' rows in this MVP. The existing batch engine does not compare across batches.');
+    }
+  }
   const cleaningMode = options.cleaningMode === 'rules_then_ai' ? 'rules_then_ai' : 'rules_only';
   const startTime = Date.now();
+  const apiCalls = reportContext?.apiCalls || createApiCalls();
+  const executionOptions = { ...options, apiCalls };
+  let reportParsed = null;
 
   // 1. Create a CleaningJob record in MongoDB
   const job = await CleaningJob.create({
@@ -78,7 +90,7 @@ export const cleanDataset = async (datasetId, userId, options = {}) => {
 
   try {
     const effectiveBatchSize = options.batchSize || env.batchSize;
-    const isLargeDataset = dataset.totalRows > effectiveBatchSize;
+    const isLargeDataset = !reportContext && dataset.totalRows > effectiveBatchSize;
     let cleaningResult;
     let aiSummary = null;
 
@@ -105,7 +117,7 @@ export const cleanDataset = async (datasetId, userId, options = {}) => {
         totalExpectedRows: dataset.totalRows,
         batchSize: effectiveBatchSize,
         cleaningMode,
-        options,
+        options: executionOptions,
         onProgress: async (p) => {
           await CleaningJob.findByIdAndUpdate(job._id, {
             processedRecords: p.processedRecords,
@@ -142,13 +154,14 @@ export const cleanDataset = async (datasetId, userId, options = {}) => {
       });
     } else {
       // 3. Parse dataset rows from file
-      const parsed = await parserService.parseDataset(dataset.storagePath, dataset.fileType);
+      const parsed = reportContext?.parsed || await parserService.parseDataset(dataset.storagePath, dataset.fileType);
+      reportParsed = parsed;
 
       // 4. Run deterministic rule pipeline (Steps 7–9)
       cleaningResult = rulePipeline.processDatasetRows(
         parsed.rows,
         dataset.columns,
-        options
+        executionOptions
       );
     }
 
@@ -269,11 +282,16 @@ export const cleanDataset = async (datasetId, userId, options = {}) => {
       metrics: cleaningResult.metrics
     });
 
+    const comparisonReport = reportParsed && cleaningMode === 'rules_only' ? buildComparisonReport({ parsed: reportParsed,
+      cleanedRows: cleaningResult.rows, reviewItems, apiCalls,
+      processingTimeMs: Date.now() - startTime + (reportContext?.priorProcessingTimeMs || 0) }) : null;
+
     // 6. Update CleaningJob record with completion metrics, quality scores, and review items
     await CleaningJob.findByIdAndUpdate(
       job._id,
       {
         status: 'completed',
+        comparisonReport,
         completedAt: new Date(),
         totalRecords: cleaningResult.metrics.totalRows,
         cleanedRecords: cleaningResult.metrics.cleanRows,
@@ -383,6 +401,7 @@ export const cleanDataset = async (datasetId, userId, options = {}) => {
     }
 
     return {
+      comparisonReport,
       job: {
         id: job._id.toString(),
         status: 'completed',

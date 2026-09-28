@@ -48,6 +48,15 @@ export function AuthProvider({ children }) {
     setError(null);
     setLoading(false);
   };
+  const updateProfile = async name => {
+    const sessionToken = api.getToken();
+    const response = await api.updateProfile(name);
+    if (api.getToken() !== sessionToken) throw new Error('Your session changed. Please log in again.');
+    if (!response?.data?.user?.id) throw new Error('The server returned an invalid profile.');
+    api.setCurrentUser(response.data.user);
+    setUser(response.data.user);
+    return response.data.user;
+  };
   const logout = () => {
     api.setToken(null);
     api.setCurrentUser(null);
@@ -56,7 +65,7 @@ export function AuthProvider({ children }) {
   };
   const initials = user?.name?.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase() || "";
   return <AuthContext.Provider value={{ user, initials, loading, error,
-    retry: () => setAttempt(value => value + 1), logout,
+    updateProfile, retry: () => setAttempt(value => value + 1), logout,
     login: credentials => authenticate("login", credentials),
     register: credentials => authenticate("register", credentials)
   }}>{children}</AuthContext.Provider>;

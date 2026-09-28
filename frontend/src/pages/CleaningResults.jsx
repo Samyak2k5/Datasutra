@@ -1,3 +1,4 @@
+import CleaningComparison from "../components/CleaningComparison";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
@@ -48,6 +49,7 @@ export default function CleaningResults() {
           <p>Quality score: {report.qualityScore?.overall == null ? "Not available" : `${report.qualityScore.overall}%`}</p>
           <Link to={`/review?jobId=${jobId}`}>Review suggestions ({report.reviewSummary?.pending ?? 0} pending)</Link>
         </div>
+        <CleaningComparison report={report.comparisonReport} />
         <label>Export format <select className="ds-select" value={format} onChange={event => setFormat(event.target.value)}>
           <option value="csv">CSV</option><option value="json">JSON</option><option value="report-csv">Audit CSV</option><option value="pdf">Text report</option>
         </select></label>

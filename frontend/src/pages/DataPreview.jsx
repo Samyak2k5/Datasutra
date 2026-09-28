@@ -1,3 +1,4 @@
+import DatasetAI from "../components/DatasetAI";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "../services/api";
@@ -53,6 +54,7 @@ export default function DataPreview() {
       <input className="ds-input" type="search" aria-label="Search preview" placeholder="Search records" value={query} onChange={event => setQuery(event.target.value)} />
       <DataTable key={`${datasetId}:${query}`} data={rows} pageSize={10} emptyMessage="No records found" columns={headers.map(header => ({ key: header, header, render: value => cell(value) }))} />
       {(result.preview.warnings || []).map((warning, index) => <p key={index}>{typeof warning === "string" ? warning : JSON.stringify(warning)}</p>)}
+      <DatasetAI key={datasetId} datasetId={datasetId} />
       <Link to={`/configure?datasetId=${encodeURIComponent(datasetId)}`}><Button disabled={!result.preview.totalRows}>Configure Cleaning</Button></Link>
     </>}
   </div>;

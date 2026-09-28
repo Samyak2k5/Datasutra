@@ -188,6 +188,7 @@ export const getCleaningJobReport = asyncHandler(async (req, res) => {
       rejected: (job.reviewItems || []).filter((i) => i.status === 'rejected').length,
       edited: (job.reviewItems || []).filter((i) => i.status === 'edited').length
     },
+    comparisonReport: job.comparisonReport || null,
     transformationLog: job.transformationLog || [],
     preview: (job.preview || []).slice(0, 50)
   };

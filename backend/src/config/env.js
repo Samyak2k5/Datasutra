@@ -35,14 +35,18 @@ export const env = {
   uploadDir: path.resolve(__dirname, '../../uploads/datasets'),
 
   // AI Configuration
-  aiProvider: process.env.AI_PROVIDER || 'mock',
-  aiModel: process.env.AI_MODEL || 'gpt-4o-mini',
+  aiProvider: process.env.AI_PROVIDER || 'openai',
+  aiModel: process.env.OPENAI_MODEL || process.env.AI_MODEL || 'gpt-4o-mini',
   aiTemperature: process.env.AI_TEMPERATURE !== undefined ? parseFloat(process.env.AI_TEMPERATURE) : 0,
   aiMaxTokens: parseInt(process.env.AI_MAX_TOKENS, 10) || 1000,
   aiTimeoutMs: parseInt(process.env.AI_TIMEOUT_MS, 10) || 15000,
   aiMaxRetries: parseInt(process.env.AI_MAX_RETRIES, 10) || 2,
   aiBatchSize: parseInt(process.env.AI_BATCH_SIZE, 10) || 10,
 
+  embeddingModel: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
+  qdrantUrl: process.env.QDRANT_URL || 'http://127.0.0.1:6333',
+  qdrantCollection: process.env.QDRANT_COLLECTION || 'datasutra_embeddings',
+  aiMaxRecords: 2000,
   // Provider Credentials (strictly backend, never returned to client)
   openaiApiKey: process.env.OPENAI_API_KEY || null,
   googleApiKey: process.env.GOOGLE_API_KEY || null,

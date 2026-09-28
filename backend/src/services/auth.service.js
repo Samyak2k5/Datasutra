@@ -135,7 +135,17 @@ export const getUserById = async (userId) => {
   return user.toJSON();
 };
 
+export const updateProfile = async (userId, input) => {
+  if (!input || Object.keys(input).some(key => key !== 'name') || typeof input.name !== 'string' || input.name.trim().length < 2 || input.name.trim().length > 100) {
+    throw ApiError.badRequest('Provide only a name between 2 and 100 characters. Email cannot be changed.');
+  }
+  const user = await User.findOneAndUpdate({ _id: userId, isActive: true }, { $set: { name: input.name.trim() } }, { returnDocument: 'after', runValidators: true });
+  if (!user) throw ApiError.notFound('User not found.');
+  return user.toJSON();
+};
+
 export default {
+  updateProfile,
   register,
   login,
   getUserById

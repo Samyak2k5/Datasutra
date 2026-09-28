@@ -11,6 +11,7 @@ router.post('/login', authRateLimiter, authController.login);
 router.post('/logout', authController.logout);
 
 // Protected routes
+router.patch('/profile', authenticate, authController.updateProfile);
 router.get('/me', authenticate, authController.getMe);
 router.get('/protected-test', authenticate, authController.protectedTest);
 

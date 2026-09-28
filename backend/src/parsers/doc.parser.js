@@ -1,5 +1,7 @@
 import fs from 'fs';
 import { execSync } from 'child_process';
+import WordExtractor from 'word-extractor';
+import env from '../config/env.js';
 import ApiError from '../utils/apiError.js';
 
 /**
@@ -44,8 +46,8 @@ export const detectDocConverter = () => {
 
 /**
  * Legacy .doc Parser / Adapter.
- * Verifies file and conversion availability.
- * If conversion is unsupported in current environment, returns a clean UNSUPPORTED_LEGACY_DOC error.
+ * Extracts legacy Word body text entirely in Node.js.
+ * Encrypted or corrupted inputs return an explicit extraction error.
  *
  * @param {string} filePath
  * @param {object} options
@@ -67,16 +69,20 @@ export const parseDOC = async (filePath, options = {}) => {
     throw ApiError.badRequest('Invalid or corrupted legacy Word (.doc) file header.');
   }
 
-  const converter = detectDocConverter();
+  let text;
+  try { text = (await new WordExtractor().extract(buffer)).getBody(); }
+  catch { throw ApiError.badRequest('Unable to extract this legacy DOC file. It may be encrypted or corrupted. Save it as DOCX and upload again.'); }
+  if (!text?.trim()) throw ApiError.badRequest('No readable text found. Image AI analysis is not enabled in this MVP');
+  if (Buffer.byteLength(text, 'utf8') > env.maxExtractedTextBytes) throw new ApiError(413, 'Extracted DOC text exceeds the configured size limit.');
+  const paragraphs = text.split(/\r?\n/).map(value => value.trim()).filter(Boolean);
+  const selected = options.limit > 0 ? paragraphs.slice(0, options.limit) : paragraphs;
+  return { format: 'doc', headers: ['Document_Paragraph'], columns: [{ name: 'Document_Paragraph', originalName: 'Document_Paragraph', inferredType: 'string' }],
+    rows: selected.map((content, index) => ({ _rowNumber: index + 1, Document_Paragraph: content })),
+    totalRows: paragraphs.length, totalColumns: 1,
+    documentStructure: { sections: selected.map(content => ({ type: 'paragraph', content })) },
+    metadata: { sourceType: 'doc', sectionsCount: paragraphs.length, extractor: 'word-extractor' },
+    warnings: ['Legacy DOC extraction preserves body text; formatting and table structure are not preserved.'] };
 
-  if (!converter) {
-    throw ApiError.badRequest(
-      'UNSUPPORTED_LEGACY_DOC: Legacy Word (.doc) binary format requires an external conversion utility (such as LibreOffice or Antiword) which is not available in the current environment. Please save and upload your document as modern Word (.docx) or CSV.'
-    );
-  }
-
-  // If converter is available, execute conversion (placeholder hook for environments with soffice)
-  throw ApiError.badRequest('UNSUPPORTED_LEGACY_DOC: External converter failed to process document.');
 };
 
 export default {

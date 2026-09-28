@@ -175,3 +175,22 @@ export default {
   extractUnresolvedItems,
   chunkItemsIntoBatches
 };
+
+
+// Bounds both data exposure and token cost. Statistics describe this sample only.
+export function buildDatasetAIContext(dataset, preview) {
+  const headers = preview.headers.filter(key => key.length <= 200 && !key.startsWith('_') && !isSensitiveKey(key)).slice(0, 50);
+  const scrub = value => JSON.stringify(value ?? '', (key, item) => isSensitiveKey(key) ? '[REDACTED]' : item)
+    .replace(/sk-[a-zA-Z0-9_-]{16,}/g, '[REDACTED]').slice(0, 200);
+  const sampled = preview.rows.slice(0, 20);
+  const rows = sampled.map(row => Object.fromEntries(headers.map(name => [name, scrub(row[name])])));
+  while (JSON.stringify(rows).length > 18000) rows.pop();
+  const columns = headers.map(name => ({ name, observedTypes: [...new Set(sampled.map(row => typeof row[name]))],
+    missingInSample: sampled.filter(row => isMissingValue(row[name])).length }));
+  const text = (preview.documentStructure?.sections || []).map(section => section.content || '').join('\n').slice(0, 8000)
+    .replace(/sk-[a-zA-Z0-9_-]{16,}/g, '[REDACTED]');
+  return { filename: String(dataset.originalFileName || dataset.name || '').slice(0, 200), format: dataset.fileType, totalRows: dataset.totalRows, totalColumns: preview.headers.length,
+    sampledRows: sampled.length, rowsSent: rows.length, columns, rows, text,
+    exactDuplicatesInSample: sampled.length - new Set(sampled.map(row => JSON.stringify(headers.map(name => row[name])))).size,
+    limitations: 'First 20 rows only; up to 50 non-sensitive columns and 8000 text characters. Findings may not represent the full dataset.' };
+}

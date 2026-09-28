@@ -1,3 +1,4 @@
+import { deleteDatasetVectors } from '../ai/vectorStore.service.js';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -155,6 +156,8 @@ export const deleteDataset = async (datasetId, userId) => {
   if (dataset.owner.toString() !== userId.toString()) {
     throw ApiError.forbidden('Access denied. You do not have permission to delete this dataset.');
   }
+
+  if (dataset.embeddingInfo) await deleteDatasetVectors(dataset);
 
   // Delete physical file gracefully
   if (dataset.storagePath) {

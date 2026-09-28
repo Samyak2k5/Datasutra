@@ -88,6 +88,7 @@ const datasetSchema = new mongoose.Schema(
       default: 'uploaded',
       index: true
     },
+    embeddingInfo: { type: mongoose.Schema.Types.Mixed, default: null },
     originalFileHash: {
       type: String,
       default: null,

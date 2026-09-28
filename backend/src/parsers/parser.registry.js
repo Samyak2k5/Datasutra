@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { parseTXT } from './txt.parser.js';
 import path from 'path';
 import ApiError from '../utils/apiError.js';
 import { parseCSV, processHeaders } from './csv.parser.js';
@@ -18,6 +19,7 @@ class ParserRegistry {
 
     // Register built-in parsers
     this.register('csv', parseCSV);
+    this.register('txt', parseTXT);
     this.register('xlsx', parseXLSX);
     this.register('xls', parseXLSX);
     this.register('json', parseJSON);
@@ -70,6 +72,12 @@ class ParserRegistry {
       headerBuf = headerBuf.subarray(0, bytesRead);
     }
 
+    const signature = headerBuf.subarray(0, 12).toString('hex');
+    if (/^(89504e470d0a1a0a|ffd8ff|474946383[79]61|424d|49492a00|4d4d002a)/.test(signature) ||
+      (headerBuf.subarray(0, 4).toString() === 'RIFF' && headerBuf.subarray(8, 12).toString() === 'WEBP')) {
+      throw ApiError.badRequest('Image AI analysis is not enabled in this MVP');
+    }
+
     // 1. PDF signature (%PDF-)
     if (isValidPdfMagicBytes(headerBuf)) {
       if (declaredType && declaredType !== 'pdf' && ext !== 'pdf') {
@@ -82,6 +90,7 @@ class ParserRegistry {
 
     // 2. Legacy Word CFB signature (D0 CF 11 E0)
     if (isLegacyDocMagicBytes(headerBuf)) {
+      if (ext === 'xls' || declaredType === 'xls') return 'xls';
       if (declaredType && declaredType !== 'doc' && ext !== 'doc') {
         throw ApiError.badRequest(
           `Format signature mismatch: File has legacy DOC signature but is declared as '${declaredType || ext}'.`
@@ -103,6 +112,7 @@ class ParserRegistry {
     }
 
     // 4. JSON / NDJSON signature (starts with { or [ after trimming whitespace)
+    if (ext === 'txt' || declaredType === 'txt') return 'txt';
     const textStart = headerBuf.toString('utf-8').trim();
     if (ext === 'ndjson' || ext === 'jsonl') {
       return 'ndjson';

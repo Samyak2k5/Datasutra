@@ -62,7 +62,13 @@ export const protectedTest = asyncHandler(async (req, res) => {
   );
 });
 
+export const updateProfile = asyncHandler(async (req, res) => {
+  const user = await authService.updateProfile(req.user.id, req.body);
+  return ApiResponse.success(res, 'Profile updated.', { user });
+});
+
 export default {
+  updateProfile,
   register,
   login,
   logout,

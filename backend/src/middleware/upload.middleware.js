@@ -13,6 +13,7 @@ if (!fs.existsSync(env.uploadDir)) {
 // Permitted extensions and MIME types for dataset uploads
 const ALLOWED_EXTENSIONS = new Set([
   '.csv',
+  '.txt',
   '.xlsx',
   '.xls',
   '.json',
@@ -62,11 +63,13 @@ const storage = multer.diskStorage({
 const fileFilter = (req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase();
 
+  if (file.mimetype?.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|tiff?|svg)$/i.test(file.originalname)) return cb(ApiError.badRequest('Image AI analysis is not enabled in this MVP'));
+
   // Validate file extension
   if (!ALLOWED_EXTENSIONS.has(ext)) {
     return cb(
       ApiError.badRequest(
-        `Unsupported file format '${ext || 'unknown'}'. Supported formats are CSV (.csv), Excel (.xlsx, .xls), JSON (.json, .jsonl), PDF (.pdf), and Word (.docx, .doc).`
+        `Unsupported file format '${ext || 'unknown'}'. Supported formats are CSV (.csv), Excel (.xlsx, .xls), JSON (.json, .jsonl), PDF (.pdf), TXT (.txt), and Word (.docx, .doc).`
       )
     );
   }
