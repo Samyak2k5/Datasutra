@@ -1,5 +1,6 @@
 import ApiResponse from '../utils/apiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
+import { googleLogin } from '../services/googleAuth.service.js';
 import authService from '../services/auth.service.js';
 
 /**
@@ -67,7 +68,13 @@ export const updateProfile = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, 'Profile updated.', { user });
 });
 
+export const google = asyncHandler(async (req, res) => {
+  const result = await googleLogin(req.body);
+  return ApiResponse.success(res, 'Google sign-in successful.', result);
+});
+
 export default {
+  google,
   updateProfile,
   register,
   login,

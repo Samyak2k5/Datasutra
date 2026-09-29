@@ -10,6 +10,8 @@ const startServer = async () => {
   try {
     console.info(`[Startup] Initializing DataSutra Backend (${env.nodeEnv})...`);
 
+    console.info(`[Auth] Google sign-in: ${env.googleClientId ? 'configured' : 'not configured'}`);
+
     // 1. Establish MongoDB connection before accepting HTTP requests
     await connectDB();
 

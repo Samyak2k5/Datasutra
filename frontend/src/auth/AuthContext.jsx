@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { disableGoogleAutoSelect } from "./googleIdentity";
 import api from "../services/api";
 
 import { AuthContext } from "./context";
@@ -48,9 +49,9 @@ export function AuthProvider({ children }) {
     setError(null);
     setLoading(false);
   };
-  const updateProfile = async name => {
+  const updateProfile = async fields => {
     const sessionToken = api.getToken();
-    const response = await api.updateProfile(name);
+    const response = await api.updateProfile(fields);
     if (api.getToken() !== sessionToken) throw new Error('Your session changed. Please log in again.');
     if (!response?.data?.user?.id) throw new Error('The server returned an invalid profile.');
     api.setCurrentUser(response.data.user);
@@ -58,6 +59,7 @@ export function AuthProvider({ children }) {
     return response.data.user;
   };
   const logout = () => {
+    disableGoogleAutoSelect();
     api.setToken(null);
     api.setCurrentUser(null);
     setUser(null);
@@ -66,6 +68,7 @@ export function AuthProvider({ children }) {
   const initials = user?.name?.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase() || "";
   return <AuthContext.Provider value={{ user, initials, loading, error,
     updateProfile, retry: () => setAttempt(value => value + 1), logout,
+    googleLogin: credentials => authenticate("googleLogin", credentials),
     login: credentials => authenticate("login", credentials),
     register: credentials => authenticate("register", credentials)
   }}>{children}</AuthContext.Provider>;

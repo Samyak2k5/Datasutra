@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { isOriginAllowed } from './utils/corsOrigin.js';
 import env from './config/env.js';
 import securityHeaders from './middleware/securityHeaders.js';
 import mongoSanitize from './middleware/mongoSanitize.js';
@@ -22,7 +23,7 @@ const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps, curl, Postman)
     if (!origin) return callback(null, true);
-    if (env.corsOrigin === '*' || env.corsOrigin.includes(origin)) {
+    if (isOriginAllowed(origin, env)) {
       return callback(null, true);
     }
     return callback(new Error(`Origin ${origin} not allowed by CORS`));

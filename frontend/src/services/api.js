@@ -83,7 +83,7 @@ class ApiClient {
       clearTimeout(timeout);
 
       // Expired sessions also invalidate protected export requests.
-      if (response.status === 401 && !["/auth/login", "/auth/register"].includes(endpoint) && this.getToken() === token) {
+      if (response.status === 401 && !["/auth/login", "/auth/register", "/auth/google"].includes(endpoint) && this.getToken() === token) {
         this.setToken(null);
         this.setCurrentUser(null);
         window.dispatchEvent(new Event("datasutra:unauthorized"));
@@ -121,6 +121,19 @@ class ApiClient {
   // ==========================================
   async login(credentials) {
     const res = await this.request("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(credentials)
+    });
+    if (!res?.data?.accessToken || !res.data.user?.id) {
+      throw new Error("The server returned an incomplete authentication response.");
+    }
+    this.setToken(res.data.accessToken);
+    this.setCurrentUser(res.data.user);
+    return res;
+  }
+
+  async googleLogin(credentials) {
+    const res = await this.request("/auth/google", {
       method: "POST",
       body: JSON.stringify(credentials)
     });
@@ -200,8 +213,10 @@ class ApiClient {
     });
   }
 
-  async updateProfile(name) {
-    return this.request('/auth/profile', { method: 'PATCH', body: JSON.stringify({ name }) });
+  async updateProfile(fields) {
+    const input = typeof fields === "string" ? { name: fields } : fields;
+    const payload = Object.fromEntries(["name", "email", "avatar", "currentPassword"].filter(key => Object.hasOwn(input, key)).map(key => [key, input[key]]));
+    return this.request('/auth/profile', { method: 'PATCH', body: JSON.stringify(payload) });
   }
 
   async datasetAI(datasetId, action, payload = {}) {

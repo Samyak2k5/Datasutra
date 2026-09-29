@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const parseCorsOrigin = (originStr) => {
-  if (!originStr || originStr === '*') return '*';
+  if (!originStr || originStr === '*') return [];
   return originStr.split(',').map((origin) => origin.trim());
 };
 
@@ -29,6 +29,7 @@ export const env = {
   corsOrigin: parseCorsOrigin(process.env.CORS_ORIGIN),
   mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/datasutra',
   jwtSecret: jwtSecret || 'datasutra_default_dev_secret_fallback_key',
+  googleClientId: process.env.GOOGLE_CLIENT_ID?.trim() || '',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1d',
   maxFileSizeMB,
   maxFileSizeBytes: maxFileSizeMB * 1024 * 1024,

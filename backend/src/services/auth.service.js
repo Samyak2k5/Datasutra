@@ -90,7 +90,7 @@ export const login = async ({ email, password }) => {
   }
 
   // 3. Compare password with stored bcrypt hash
-  const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+  const isPasswordValid = !!user.passwordHash && await bcrypt.compare(password, user.passwordHash);
   if (!isPasswordValid) {
     // Same generic message
     throw ApiError.unauthorized('Invalid email or password.');
@@ -136,12 +136,65 @@ export const getUserById = async (userId) => {
 };
 
 export const updateProfile = async (userId, input) => {
-  if (!input || Object.keys(input).some(key => key !== 'name') || typeof input.name !== 'string' || input.name.trim().length < 2 || input.name.trim().length > 100) {
-    throw ApiError.badRequest('Provide only a name between 2 and 100 characters. Email cannot be changed.');
+  const allowed = ['name', 'email', 'avatar', 'currentPassword'];
+  if (!input || typeof input !== 'object' || Array.isArray(input) || !Object.keys(input).length
+    || Object.keys(input).some(key => !allowed.includes(key))) {
+    throw ApiError.badRequest('Only name, email and avatar may be updated.');
   }
-  const user = await User.findOneAndUpdate({ _id: userId, isActive: true }, { $set: { name: input.name.trim() } }, { returnDocument: 'after', runValidators: true });
+  const updates = {};
+  if ('name' in input) {
+    if (typeof input.name !== 'string' || input.name.trim().length < 2 || input.name.trim().length > 100) {
+      throw ApiError.badRequest('Name must contain 2–100 characters.');
+    }
+    updates.name = input.name.trim();
+  }
+  if ('email' in input) {
+    if (typeof input.email !== 'string' || input.email.trim().length > 254 || !EMAIL_REGEX.test(input.email.trim())) {
+      throw ApiError.badRequest('Please provide a valid email address.');
+    }
+    updates.email = input.email.trim().toLowerCase();
+  }
+  if ('avatar' in input) {
+    if (input.avatar === null || input.avatar === '') updates.avatar = null;
+    else {
+      try {
+        if (typeof input.avatar !== 'string' || input.avatar.length > 2048) throw new Error();
+        const url = new URL(input.avatar.trim());
+        if (url.protocol !== 'https:' || url.username || url.password) throw new Error();
+        updates.avatar = url.href;
+      } catch { throw ApiError.badRequest('Avatar must be an HTTPS image URL, or empty to remove it.'); }
+    }
+  }
+  if (!Object.keys(updates).length) throw ApiError.badRequest('Choose a profile field to update.');
+  const user = await User.findOne({ _id: userId, isActive: true });
   if (!user) throw ApiError.notFound('User not found.');
-  return user.toJSON();
+  const changingEmail = updates.email !== undefined && updates.email !== user.email;
+  if (changingEmail) {
+    if (user.googleId || user.authProvider === 'google') throw ApiError.badRequest('Google-linked email is controlled by Google and cannot be edited here.');
+    if (typeof input.currentPassword !== 'string' || !input.currentPassword || !user.passwordHash
+      || !await bcrypt.compare(input.currentPassword, user.passwordHash)) {
+      throw ApiError.badRequest('Your current password is required to change your email.');
+    }
+    if (await User.exists({ email: updates.email, _id: { $ne: userId } })) {
+      throw ApiError.conflict('An account with this email address already exists.');
+    }
+  }
+  // Guard against concurrent credential or provider changes during reauthentication.
+  const filter = { _id: userId, isActive: true };
+  if (changingEmail) {
+    filter.email = user.email;
+    filter.passwordHash = user.passwordHash;
+    filter.googleId = { $exists: false };
+    filter.authProvider = { $ne: 'google' };
+  }
+  try {
+    const updated = await User.findOneAndUpdate(filter, { $set: updates }, { returnDocument: 'after', runValidators: true });
+    if (!updated) throw ApiError.conflict('Your account changed during this request. Refresh and try again.');
+    return updated.toJSON();
+  } catch (error) {
+    if (error.code === 11000) throw ApiError.conflict('An account with this email address already exists.');
+    throw error;
+  }
 };
 
 export default {

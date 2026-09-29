@@ -6,12 +6,13 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
+    "dev": "node --watch --watch-path=src --watch-path=.env src/server.js",
     "seed:demo": "node scripts/seedDemoUser.js",
     "test:real-data": "node scripts/testRealDataFlow.js",
     "test": "node --test --test-isolation=none tests/*.test.js",
     "test:ai:live": "node scripts/testLiveAI.js",
-    "test:ai:pipeline": "node scripts/testVectorPipeline.js"
+    "test:ai:pipeline": "node scripts/testVectorPipeline.js",
+    "test:auth:google": "node scripts/testGoogleAuth.js"
   },
   "keywords": [
     "datasutra",
@@ -30,6 +31,7 @@
     "csv-parse": "^7.0.2",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "google-auth-library": "^11.1.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.10.2",
     "multer": "^2.4.0",

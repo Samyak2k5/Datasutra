@@ -18,8 +18,10 @@ const userSchema = new mongoose.Schema(
     },
     passwordHash: {
       type: String,
-      required: [true, 'Password hash is required']
+      required: [function () { return !this.googleId; }, 'Password hash is required']
     },
+    googleId: { type: String, unique: true, sparse: true },
+    authProvider: { type: String, enum: ['local', 'google'], default: 'local' },
     role: {
       type: String,
       enum: {
@@ -48,6 +50,7 @@ const userSchema = new mongoose.Schema(
       transform: (doc, ret) => {
         ret.id = ret._id ? ret._id.toString() : ret.id;
         delete ret.passwordHash;
+        delete ret.googleId;
         delete ret.__v;
         return ret;
       }
@@ -56,6 +59,7 @@ const userSchema = new mongoose.Schema(
       transform: (doc, ret) => {
         ret.id = ret._id ? ret._id.toString() : ret.id;
         delete ret.passwordHash;
+        delete ret.googleId;
         delete ret.__v;
         return ret;
       }
