@@ -37,3 +37,23 @@ export function validateOperations(input, columns) {
   }
   return parsed.data;
 }
+
+
+// Constrain generation itself to the same column/null contract enforced at execution.
+// A nested anyOf is supported by OpenAI strict structured outputs; no root union is used.
+export function createDatasetCleaningSchemas(columns) {
+  const names = [...new Set(columns.map(column => typeof column === 'string' ? column : column.name))];
+  const exactColumn = names.length ? z.enum(names).describe('An exact, case-sensitive dataset column name. Never rename, lowercase, or invent a column.') : null;
+  const variants = operationTypes.flatMap(type => {
+    if (type === 'detect_duplicates') return [z.object({ type: z.literal(type), column: z.null() }).strict()];
+    if (['trim_whitespace', 'flag_missing_values'].includes(type)) {
+      return [z.object({ type: z.literal(type), column: exactColumn ? exactColumn.nullable() : z.null() }).strict()];
+    }
+    return exactColumn ? [z.object({ type: z.literal(type), column: exactColumn }).strict()] : [];
+  });
+  const operation = z.union(variants);
+  return {
+    plan: aiPlanSchema.extend({ operations: z.array(operation).max(12).describe('For supported=true, include at least one requested operation. For supported=false, return an empty array.') }),
+    suggestions: aiSuggestionsSchema.extend({ suggestions: z.array(aiSuggestionsSchema.shape.suggestions.element.extend({ operation: operation.nullable() })).max(12) })
+  };
+}

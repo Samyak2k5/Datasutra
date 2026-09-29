@@ -9,7 +9,7 @@ import AdmZip from 'adm-zip';
 import { ChatOpenAI } from '@langchain/openai';
 import OpenAIProvider from '../src/ai/providers/openai.provider.js';
 import { aiAnalysisSchema } from '../src/ai/schemas/aiAnalysis.schema.js';
-import { aiPlanSchema, validateOperations } from '../src/ai/schemas/aiCleaning.schema.js';
+import { aiPlanSchema, createDatasetCleaningSchemas, validateOperations } from '../src/ai/schemas/aiCleaning.schema.js';
 import { buildDatasetAIContext } from '../src/ai/aiContext.builder.js';
 import { processDatasetRows } from '../src/cleaning/pipeline/rulePipeline.js';
 import parserRegistry from '../src/parsers/parser.registry.js';
@@ -138,4 +138,52 @@ test('API counter counts successful HTTP calls separately from failures', async 
     await assert.rejects(trackedFetch(counts, 'chat')('https://api.openai.com/v1/chat/completions'));
     assert.deepEqual(counts, { embeddings: 1, chat: 0, total: 1, failed: 2 });
   } finally { globalThis.fetch = original; }
+});
+
+
+test('dataset-scoped generation schema rejects alternate columns and invalid operation/null pairs', () => {
+  const columns = ['Name', 'City', 'Email', 'Phone', 'Age'];
+  const { plan, suggestions } = createDatasetCleaningSchemas(columns.map(name => ({ name })));
+  const valid = [
+    { type: 'normalize_email', column: 'Email' }, { type: 'standardize_phone', column: 'Phone' },
+    { type: 'standardize_name', column: 'Name' }, { type: 'standardize_location', column: 'City' },
+    { type: 'flag_missing_values', column: null }, { type: 'detect_duplicates', column: null }
+  ];
+  const wrap = operations => ({ supported: true, message: 'Reviewed plan', operations });
+  assert.deepEqual(plan.parse(wrap(valid)).operations, validateOperations(valid, columns));
+  for (const operation of [
+    { type: 'normalize_email', column: 'email' }, { type: 'standardize_location', column: 'Location' },
+    { type: 'standardize_name', column: null }, { type: 'standardize_phone', column: null },
+    { type: 'normalize_email', column: null }, { type: 'standardize_location', column: null },
+    { type: 'detect_duplicates', column: 'Name' }, { type: 'flag_missing_values', column: 'null' }
+  ]) {
+    // This was the gap: the generic model schema accepted responses execution must reject.
+    assert.equal(aiPlanSchema.safeParse(wrap([operation])).success, true);
+    assert.equal(plan.safeParse(wrap([operation])).success, false);
+    assert.throws(() => validateOperations([operation], columns));
+    assert.equal(suggestions.safeParse({ suggestions: [{ issue: 'Issue', explanation: 'Explanation', suggestedAction: 'Action', severity: 'low', operation }] }).success, false);
+  }
+  assert.equal(plan.safeParse({ supported: false, message: 'Deletion is unsupported.', operations: [] }).success, true);
+  assert.equal(plan.safeParse(wrap([{ type: 'remove_duplicates', column: null }])).success, false);
+  assert.equal(createDatasetCleaningSchemas(['Customer Email']).plan.safeParse(wrap([{ type: 'normalize_email', column: 'Customer Email' }])).success, true);
+  assert.equal(createDatasetCleaningSchemas([]).plan.safeParse(wrap([{ type: 'normalize_email', column: 'Email' }])).success, false);
+});
+
+test('all six vector-pipeline operations execute with exact columns and preserve duplicate rows', async () => {
+  const { measureRecords } = await import('../src/services/cleaningMetrics.service.js');
+  const columns = ['Name', 'City', 'Email', 'Phone', 'Age'];
+  const alice = { Name: ' ALICE ', City: 'mumbai', Email: ' ALICE@EXAMPLE.COM ', Phone: '+91 98765 43210', Age: '21' };
+  const rows = [{ ...alice, _rowNumber: 2 }, { ...alice, _rowNumber: 3 }, { _rowNumber: 4, Name: 'Bob', City: 'pune', Email: 'invalid-email', Phone: 'bad-phone', Age: '' }];
+  const operations = [{ type: 'normalize_email', column: 'Email' }, { type: 'standardize_phone', column: 'Phone' }, { type: 'standardize_name', column: 'Name' }, { type: 'standardize_location', column: 'City' }, { type: 'flag_missing_values', column: null }, { type: 'detect_duplicates', column: null }];
+  createDatasetCleaningSchemas(columns).plan.parse({ supported: true, message: 'Plan', operations });
+  const before = measureRecords(rows, columns);
+  const result = processDatasetRows(rows, columns, { operations });
+  const after = measureRecords(result.rows.map(row => row.cleaned), columns);
+  assert.deepEqual([before.rows, after.rows], [3, 3]);
+  assert.deepEqual([before.missingValues, after.missingValues], [1, 1]);
+  assert.deepEqual([before.invalidEmails, after.invalidEmails], [3, 1]);
+  assert.deepEqual([before.invalidPhones, after.invalidPhones], [3, 1]);
+  assert.deepEqual([before.duplicateGroups, after.duplicateGroups], [1, 1]);
+  assert.deepEqual([before.nameCityInconsistencies, after.nameCityInconsistencies], [5, 0]);
+  assert.equal(result.metrics.unresolvedMissingValues, 1);
 });

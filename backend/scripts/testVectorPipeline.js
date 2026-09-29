@@ -30,10 +30,16 @@ try {
   await datasetService.parseDataset(id, ownerId);
   const plan = await runDatasetAI(id, ownerId, 'command', 'Normalize Email, standardize Phone, standardize Name and City, flag missing values, and detect duplicates. Do not remove records or fill missing values.');
   assert.equal(plan.supported, true);
+  const expectedOperations = [{ type: 'normalize_email', column: 'Email' }, { type: 'standardize_phone', column: 'Phone' },
+    { type: 'standardize_name', column: 'Name' }, { type: 'standardize_location', column: 'City' },
+    { type: 'flag_missing_values', column: null }, { type: 'detect_duplicates', column: null }];
+  for (const expected of expectedOperations) assert.ok(plan.operations.some(operation => operation.type === expected.type && operation.column === expected.column), 'Missing exact-column operation: ' + JSON.stringify(expected) + '; received: ' + JSON.stringify(plan.operations));
   assert.ok(plan.embeddings.storedChunks > 0);
   const stored = await countVectors(datasetFilter(dataset, plan.embeddings.revision));
   assert.equal(stored, plan.embeddings.storedChunks);
   assert.equal(await countVectors(datasetFilter({ ...dataset.toObject(), owner: new mongoose.Types.ObjectId() }, plan.embeddings.revision)), 0);
+  assert.equal(await countVectors(datasetFilter(dataset, 'unrelated-revision')), 0);
+  assert.equal(await countVectors(datasetFilter({ ...dataset.toObject(), _id: new mongoose.Types.ObjectId() }, plan.embeddings.revision)), 0);
   const result = await executeReviewedPlan(id, ownerId, plan.operations, plan.sessionId);
   const report = result.comparisonReport;
   assert.equal(report.metrics.originalRows, 3); assert.equal(report.metrics.finalRows, 3);
@@ -45,7 +51,10 @@ try {
   assert.equal(report.apiCalls.embeddings, 2); assert.equal(report.apiCalls.chat, 2); assert.equal(report.apiCalls.total, 4);
   console.log(JSON.stringify({ status: 'PASS', storage: env.qdrantUrl, storedChunks: stored, embeddingModel: env.embeddingModel, chatModel: env.aiModel, metrics: report.metrics, apiCalls: report.apiCalls, summary: report.summary }, null, 2));
 } finally {
-  if (dataset) await deleteDatasetVectors(dataset);
+  if (dataset) {
+    await deleteDatasetVectors(dataset);
+    assert.equal(await countVectors(datasetFilter(dataset)), 0, 'Test dataset vectors must be removed');
+  }
   if (ownerId) await Promise.all([Dataset.deleteMany({ owner: ownerId }), CleaningJob.deleteMany({owner: ownerId}), AISession.deleteMany({ owner: ownerId }), AuditLog.deleteMany({owner: ownerId}), User.deleteOne({_id: ownerId})]);
   if (filePath) await fs.rm(filePath, {force: true});
   await mongoose.disconnect();

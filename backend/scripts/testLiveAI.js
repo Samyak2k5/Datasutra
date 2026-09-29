@@ -8,7 +8,7 @@ import parserRegistry from '../src/parsers/parser.registry.js';
 import OpenAIProvider from '../src/ai/providers/openai.provider.js';
 import { buildDatasetAIContext } from '../src/ai/aiContext.builder.js';
 import { aiAnalysisSchema } from '../src/ai/schemas/aiAnalysis.schema.js';
-import { aiPlanSchema, validateOperations } from '../src/ai/schemas/aiCleaning.schema.js';
+import { createDatasetCleaningSchemas, validateOperations } from '../src/ai/schemas/aiCleaning.schema.js';
 
 if (!env.openaiApiKey) {
   console.log('SKIPPED live OpenAI validation: OPENAI_API_KEY is not configured in backend/.env. No paid requests made.');
@@ -28,7 +28,7 @@ if (!env.openaiApiKey) {
       console.log('PASS live ' + format.toUpperCase() + ' → parser → LangChain → OpenAI → validated analysis');
       if (format === 'csv') csvContext = context;
     }
-    const plan = await provider.invokeStructured(aiPlanSchema, { system: 'Convert the instruction to a plan. Only trim_whitespace is supported. Use exact column names. Unsupported requests must return supported=false and empty operations.', payload: { dataset: csvContext, instruction: 'Trim whitespace from Name only.' } });
+    const plan = await provider.invokeStructured(createDatasetCleaningSchemas(csvContext.columns).plan, { system: 'Convert the instruction to a plan. Only trim_whitespace is supported. Use exact column names. Unsupported requests must return supported=false and empty operations.', payload: { dataset: csvContext, instruction: 'Trim whitespace from Name only.' } });
     assert.equal(plan.supported, true); validateOperations(plan.operations, csvContext.columns);
     assert.deepEqual(plan.operations, [{ type: 'trim_whitespace', column: 'Name' }]);
     console.log('PASS live natural-language cleaning plan. Four paid requests completed; no user datasets changed.');
